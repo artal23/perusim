@@ -1,0 +1,42 @@
+{
+  "Kennedy": {
+    "Jan-26": {
+      "renta_espacio": 100,
+      "marketing": 200,
+      "software_licencias": 49,
+      "soporte": 40,
+      "incentivo_fijo": 50,
+      "incentivo_variable": 32
+    }
+  },
+  "LAP": {
+    "Jan-26": {
+      "renta_espacio": 0,
+      "marketing": 0,
+      "software_licencias": 0,
+      "soporte": 0,
+      "incentivo_fijo": 0,
+      "incentivo_variable": 0
+    }
+  },
+  "Larco": {
+    "Jan-26": {
+      "renta_espacio": 0,
+      "marketing": 0,
+      "software_licencias": 0,
+      "soporte": 0,
+      "incentivo_fijo": 0,
+      "incentivo_variable": 0
+    }
+  },
+  "Cusco": {
+    "Jan-26": {
+      "renta_espacio": 0,
+      "marketing": 0,
+      "software_licencias": 0,
+      "soporte": 0,
+      "incentivo_fijo": 0,
+      "incentivo_variable": 0
+    }
+  }
+}
