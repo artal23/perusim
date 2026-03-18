@@ -40,6 +40,43 @@ function SecHeader({ title }: { title: string }) {
   );
 }
 
+function Section({ title, summary, children }: {
+  title: string;
+  summary?: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          padding: '7px 16px', background: 'var(--bg-base)',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          cursor: 'pointer', userSelect: 'none',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '10px', fontWeight: '600', letterSpacing: '1px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace' }}>
+            {title}
+          </span>
+          <span style={{ fontSize: '9px', color: 'var(--text-muted)', opacity: 0.5, fontFamily: 'DM Mono, monospace' }}>
+            {open ? '▲' : '▼'}
+          </span>
+        </div>
+        {!open && summary && (
+          <span style={{ fontSize: '11px', fontFamily: 'DM Mono, monospace', color: 'var(--text-secondary)', fontWeight: '500' }}>
+            {summary}
+          </span>
+        )}
+      </div>
+      {open && children}
+    </>
+  );
+}
+
+
 function Row({ label, value, bold, indent, color }: {
   label: string; value: string; bold?: boolean; indent?: boolean; color?: string;
 }) {
@@ -157,43 +194,54 @@ export default function LarcoPage() {
               </div>
             </div>
 
+            {/* INGRESOS — colapsado por defecto, muestra total sin IGV */}
             <SecHeader title="INGRESOS" />
-            <Row label="Ventas Stand Planes"  value={S(d.ingresos_planes)}      indent />
-            <Row label="Activation Fee"       value={S(d.ingresos_activation)}  indent />
-            <Row label="Recargas"             value={S(d.ingresos_recargas)}    indent />
-            <Row label="Total Con IGV"        value={S(d.total_con_igv)}        bold color="#93c5fd" />
-            <Row label="Total Sin IGV"        value={S(d.total_sin_igv)}        bold color="#93c5fd" />
+            <Row label="Ventas Stand Planes"  value={S(d.ingresos_planes)}     indent />
+            <Row label="Activation Fee"       value={S(d.ingresos_activation)} indent />
+            <Row label="Recargas"             value={S(d.ingresos_recargas)}   indent />
+            <Row label="Total Con IGV"        value={S(d.total_con_igv)}       bold color="#93c5fd" />
+            <Row label="Total Sin IGV"        value={S(d.total_sin_igv)}       bold color="#93c5fd" />
+            {/* </Section> */}
 
-            <SecHeader title="COSTOS DE RED" />
-            <Row label="Costo Data"           value={S(d.costo_data)}     indent />
-            <Row label="Costo Voz Saliente"   value={S(d.costo_voz_sal)}  indent />
-            <Row label="Costo Voz Entrante"   value={S(d.costo_voz_ent)}  indent />
-            <Row label="Costo SMS"            value={S(d.costo_sms)}      indent />
-            <Row label="Total Costos de Red"  value={S(d.costo_red)}      bold />
+            {/* COSTOS DE RED — colapsado, muestra total red */}
+            <Section title="COSTOS DE RED" summary={S(d.costo_red)}>
+              <Row label="Costo Data"          value={S(d.costo_data)}    indent />
+              <Row label="Costo Voz Saliente"  value={S(d.costo_voz_sal)} indent />
+              <Row label="Costo Voz Entrante"  value={S(d.costo_voz_ent)} indent />
+              <Row label="Costo SMS"           value={S(d.costo_sms)}     indent />
+              <Row label="Total Costos de Red" value={S(d.costo_red)}     bold />
+            </Section>
 
-            <SecHeader title="COSTOS VARIABLES" />
-            <Row label="Costo CRM / Plataforma" value={S(d.costo_crm)}   indent />
-            <Row label="Costo MTC (2.30%)"      value={S(d.costo_mtc)}   indent />
-            <Row label="Costo SIM Cards"        value={S(d.costo_sim)}   indent />
-            <Row label="Vías de Pago"           value={S(d.costo_vias)}  indent />
-            <Row label="Biometría Vendedor"     value={S(d.costo_bio)}   indent />
-            <Row label="Total Costos Variables" value={S(d.gastos_variables)} bold />
+            {/* COSTOS VARIABLES — colapsado, muestra total variables */}
+            <Section title="COSTOS VARIABLES" summary={S(d.gastos_variables)}>
+              <Row label="Costo CRM / Plataforma" value={S(d.costo_crm)}        indent />
+              <Row label="Costo MTC (2.30%)"      value={S(d.costo_mtc)}        indent />
+              <Row label="Costo SIM Cards"        value={S(d.costo_sim)}        indent />
+              <Row label="Vías de Pago"           value={S(d.costo_vias)}       indent />
+              <Row label="Biometría Vendedor"     value={S(d.costo_bio)}        indent />
+              <Row label="Total Costos Variables" value={S(d.gastos_variables)} bold />
+            </Section>
 
-            <SecHeader title="OTROS COSTOS" />
-            <Row label="Renta Espacio"        value={S(d.renta_espacio)}       indent />
-            <Row label="Marketing"            value={S(d.marketing)}           indent />
-            <Row label="Software y Licencias" value={S(d.software_licencias)}  indent />
-            <Row label="Soporte"              value={S(d.soporte)}             indent />
-            <Row label="Incentivo Fijo"       value={S(d.incentivo_fijo)}      indent />
-            <Row label="Incentivo Variable"   value={S(d.incentivo_variable)}  indent />
-            <Row label="Total Otros Costos"   value={S(d.gastos_otros)}        bold />
+            {/* OTROS COSTOS — colapsado, muestra total otros */}
+            <Section title="OTROS COSTOS" summary={S(d.gastos_otros)}>
+              <Row label="Renta Espacio"        value={S(d.renta_espacio)}      indent />
+              <Row label="Marketing"            value={S(d.marketing)}          indent />
+              <Row label="Software y Licencias" value={S(d.software_licencias)} indent />
+              <Row label="Soporte"              value={S(d.soporte)}            indent />
+              <Row label="Incentivo Fijo"       value={S(d.incentivo_fijo)}     indent />
+              <Row label="Incentivo Variable"   value={S(d.incentivo_variable)} indent />
+              <Row label="Total Otros Costos"   value={S(d.gastos_otros)}       bold />
+            </Section>
 
-            <SecHeader title="RESULTADO" />
-            <Row label="Costos Totales Negocio Móvil" value={S(d.gastos_totales)}    bold color="#f87171" />
-            <Row label="Margen de Red Móvil"          value={S(d.margen_red)}        bold />
-            <Row label="Margen de Red Móvil (%)"      value={P(d.margen_red_pct)}    bold color="var(--accent-green)" />
-            <Row label="Margen Bruto Móvil"           value={S(d.margen_bruto)}      bold />
-            <Row label="Margen Bruto Móvil (%)"       value={P(d.margen_bruto_pct)}  bold color="var(--accent-green)" />
+            {/* RESULTADO — siempre visible */}
+            <div style={{ padding: '7px 16px', background: 'var(--bg-base)', borderBottom: '1px solid var(--border)' }}>
+              <span style={{ fontSize: '10px', fontWeight: '600', letterSpacing: '1px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace' }}>RESULTADO</span>
+            </div>
+            <Row label="Costos Totales Negocio Móvil" value={S(d.gastos_totales)}   bold color="#f87171" />
+            <Row label="Margen de Red Móvil"          value={S(d.margen_red)}       bold />
+            <Row label="Margen de Red Móvil (%)"      value={P(d.margen_red_pct)}   bold color="var(--accent-green)" />
+            <Row label="Margen Bruto Móvil"           value={S(d.margen_bruto)}     bold />
+            <Row label="Margen Bruto Móvil (%)"       value={P(d.margen_bruto_pct)} bold color="var(--accent-green)" />
           </div>
         ))}
       </div>
