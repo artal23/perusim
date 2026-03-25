@@ -6,21 +6,24 @@ export async function GET() {
     const client = await pool.connect();
     const result = await client.query(`
       SELECT 
-        TO_CHAR(created_dt, 'Mon-YY') as mes,
         CASE 
           WHEN invoice_serie IN ('BAL1','BM01','FAL1') THEN 'LAP'
-          WHEN invoice_serie IN ('BPK1','BM02') THEN 'Kennedy'
-          WHEN invoice_serie IN ('BSL1','BM03') THEN 'Larco'
+          WHEN invoice_serie IN ('BPK1','BM02')        THEN 'Kennedy'
+          WHEN invoice_serie IN ('BSL1','BM03')        THEN 'Larco'
           WHEN invoice_serie IN ('BPC1','BAE1','BM04') THEN 'Cusco'
-          ELSE 'Otros'
-        END as local,
-        COUNT(*) as transacciones,
-        ROUND(SUM(tot_without_igv)::numeric, 2) as ingresos_sin_igv,
-        ROUND(SUM(tot_with_igv)::numeric, 2) as ingresos_con_igv
-      FROM dataset.odoo
+        END AS local,
+        ROUND(SUM(tot_without_igv)::numeric, 2) AS ingresos_sin_igv,
+        ROUND(SUM(tot_with_igv)::numeric,    2) AS ingresos_con_igv
+      FROM dataset.odoo_perusim2023
       WHERE segment = 'PeruSIM'
-      GROUP BY mes, local
-      ORDER BY mes, local
+        AND invoice_serie IN (
+          'BAL1','BM01','FAL1',
+          'BPK1','BM02',
+          'BSL1','BM03',
+          'BPC1','BAE1','BM04'
+        )
+      GROUP BY local
+      ORDER BY ingresos_con_igv DESC
     `);
     client.release();
     return NextResponse.json(result.rows);

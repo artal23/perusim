@@ -1,33 +1,24 @@
 'use client';
-
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
 
 interface ResumenRow {
-  mes: string;
-  local: string;
-  transacciones: number;
+  local:            string;
   ingresos_sin_igv: number;
   ingresos_con_igv: number;
 }
 
-const formatCurrency = (value: number) =>
-  `S/.${Number(value).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`;
-
-const LOCALES = ['LAP', 'Kennedy', 'Larco', 'Cusco', 'Otros'];
+const S = (v: number) =>
+  `S/.${Number(v).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function ResumenPage() {
-  const [data, setData] = useState<ResumenRow[]>([]);
+  const [data, setData]       = useState<ResumenRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError]     = useState('');
 
   useEffect(() => {
     fetch('/api/resumen')
-      .then((r) => r.json())
-      .then((d) => {
+      .then(r => r.json())
+      .then(d => {
         if (d.error) setError(d.error);
         else setData(d);
         setLoading(false);
@@ -35,48 +26,130 @@ export default function ResumenPage() {
       .catch(() => { setError('Error al cargar datos'); setLoading(false); });
   }, []);
 
-  const meses = [...new Set(data.map((r) => r.mes))];
-  const getValue = (mes: string, local: string) =>
-    data.find((r) => r.mes === mes && r.local === local);
+  const totalSinIGV = data.reduce((a, r) => a + Number(r.ingresos_sin_igv), 0);
+  const totalConIGV = data.reduce((a, r) => a + Number(r.ingresos_con_igv), 0);
 
-  if (loading) return <p className="text-gray-500">Cargando datos...</p>;
-  if (error) return <p className="text-red-500">Error: {error}</p>;
+  if (loading) return (
+    <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '13px', color: 'var(--text-muted)' }}>
+      ● cargando...
+    </p>
+  );
+  if (error) return (
+    <p style={{ fontFamily: 'DM Mono, monospace', fontSize: '13px', color: '#f87171' }}>
+      Error: {error}
+    </p>
+  );
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Resumen General</h1>
-      {meses.map((mes) => (
-        <Card key={mes} className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg">{mes}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-800 hover:bg-gray-800">
-                  <TableHead className="text-white font-bold">Local</TableHead>
-                  <TableHead className="text-white font-bold text-right">Transacciones</TableHead>
-                  <TableHead className="text-white font-bold text-right">Ingresos sin IGV</TableHead>
-                  <TableHead className="text-white font-bold text-right">Ingresos con IGV</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {LOCALES.map((local, i) => {
-                  const row = getValue(mes, local);
-                  return (
-                    <TableRow key={local} className={i % 2 === 0 ? 'bg-gray-50' : ''}>
-                      <TableCell className="font-medium">{local}</TableCell>
-                      <TableCell className="text-right">{row?.transacciones ?? '-'}</TableCell>
-                      <TableCell className="text-right">{row ? formatCurrency(row.ingresos_sin_igv) : '-'}</TableCell>
-                      <TableCell className="text-right">{row ? formatCurrency(row.ingresos_con_igv) : '-'}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      ))}
+      {/* ── Cabecera ── */}
+      <div style={{ marginBottom: '28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
+          <div style={{ width: '4px', height: '28px', borderRadius: '2px', background: 'linear-gradient(180deg, #f59e0b, #ef4444)' }} />
+          <h1 style={{ fontSize: '22px', fontWeight: '600', letterSpacing: '-0.5px' }}>Resumen General</h1>
+        </div>
+        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '16px', fontFamily: 'DM Mono, monospace' }}>
+          INGRESOS POR LOCAL · PERUSIM 2023
+        </p>
+      </div>
+
+      {/* ── Tarjetas de totales ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', marginBottom: '28px' }}>
+        {[
+          { label: 'Total sin IGV', value: S(totalSinIGV), color: '#6ee7b7' },
+          { label: 'Total con IGV', value: S(totalConIGV), color: '#93c5fd' },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: 'var(--border-radius-lg)', padding: '1rem',
+          }}>
+            <p style={{
+              fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace',
+              fontWeight: '600', marginBottom: '6px', letterSpacing: '0.5px',
+            }}>
+              {label.toUpperCase()}
+            </p>
+            <p style={{ fontSize: '24px', fontWeight: '500', color, fontFamily: 'DM Mono, monospace' }}>
+              {value}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Tabla ── */}
+      <div style={{ borderRadius: '10px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--bg-card)' }}>
+          <thead>
+            <tr>
+              {['Local', 'Ingresos sin IGV', 'Ingresos con IGV'].map((h, i) => (
+                <th key={h} style={{
+                  padding: '10px 16px',
+                  textAlign: i === 0 ? 'left' : 'right',
+                  fontFamily: 'DM Mono, monospace',
+                  fontSize: '10px', fontWeight: '600', letterSpacing: '0.5px',
+                  color: 'var(--text-muted)',
+                  borderBottom: '2px solid var(--border)',
+                  background: 'var(--bg-base)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row, i) => (
+              <tr key={row.local} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                <td style={{
+                  padding: '10px 16px', fontSize: '13px', fontWeight: '500',
+                  color: 'var(--text-primary)', borderBottom: '1px solid var(--border)',
+                }}>
+                  {row.local}
+                </td>
+                <td style={{
+                  padding: '10px 16px', textAlign: 'right',
+                  fontFamily: 'DM Mono, monospace', fontSize: '13px',
+                  color: '#6ee7b7', borderBottom: '1px solid var(--border)',
+                }}>
+                  {S(Number(row.ingresos_sin_igv))}
+                </td>
+                <td style={{
+                  padding: '10px 16px', textAlign: 'right',
+                  fontFamily: 'DM Mono, monospace', fontSize: '13px',
+                  color: '#93c5fd', borderBottom: '1px solid var(--border)',
+                }}>
+                  {S(Number(row.ingresos_con_igv))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ background: 'rgba(59,130,246,0.06)' }}>
+              <td style={{
+                padding: '10px 16px', fontSize: '12px', fontWeight: '600',
+                fontFamily: 'DM Mono, monospace', color: 'var(--text-primary)',
+                borderTop: '2px solid var(--border)',
+              }}>
+                TOTAL
+              </td>
+              <td style={{
+                padding: '10px 16px', textAlign: 'right',
+                fontFamily: 'DM Mono, monospace', fontSize: '12px', fontWeight: '600',
+                color: '#6ee7b7', borderTop: '2px solid var(--border)',
+              }}>
+                {S(totalSinIGV)}
+              </td>
+              <td style={{
+                padding: '10px 16px', textAlign: 'right',
+                fontFamily: 'DM Mono, monospace', fontSize: '12px', fontWeight: '600',
+                color: '#93c5fd', borderTop: '2px solid var(--border)',
+              }}>
+                {S(totalConIGV)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   );
 }
