@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
+import ExportPDF   from '@/components/ExportPDF';
+import ExportExcel from '@/components/ExportExcel';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 interface Plan {
@@ -7,7 +9,7 @@ interface Plan {
   nombre:           string;
   bundle_key:       string;
   gb:               number;
-  precio_comercial: number; // precio con IGV (establecido)
+  precio_comercial: number;
   num_usuarios:     number;
 }
 
@@ -62,6 +64,35 @@ const PLANES_BASE: Plan[] = [
   { codigo: 'P_E3', nombre: 'PeruSim 1 GB Extra',  bundle_key: 'PeruSim 1 GB Extra',  gb: 1,  precio_comercial:  20.00, num_usuarios: 0 },
 ];
 
+const REPORT_ID = 'reporte-analisis-planes';
+
+// ─── Columnas Excel ───────────────────────────────────────────────────────────
+const EXCEL_COLUMNS = [
+  { header: 'Código',           key: 'codigo',           format: 'text'     as const },
+  { header: 'Plan',             key: 'nombre',           format: 'text'     as const },
+  { header: 'Usuarios',         key: 'num_usuarios',     format: 'number'   as const },
+  { header: 'Datos Plan MB',    key: 'datos_plan_mb',    format: 'number'   as const },
+  { header: 'Uso Data MB/usr',  key: 'uso_data_mb',      format: 'number'   as const },
+  { header: '% Uso Data',       key: 'uso_data_pct',     format: 'percent'  as const },
+  { header: 'Voz Sal min/usr',  key: 'uso_voz_sal_min',  format: 'number'   as const },
+  { header: 'Voz Ent min/usr',  key: 'uso_voz_ent_min',  format: 'number'   as const },
+  { header: 'SMS unit/usr',     key: 'uso_sms_unit',     format: 'number'   as const },
+  { header: 'Costo Data',       key: 'costo_data',       format: 'currency' as const },
+  { header: 'Costo Voz Sal',    key: 'costo_voz_sal',    format: 'currency' as const },
+  { header: 'Costo Voz Ent',    key: 'costo_voz_ent',    format: 'currency' as const },
+  { header: 'Costo SMS',        key: 'costo_sms',        format: 'currency' as const },
+  { header: 'Costo CRM',        key: 'costo_crm',        format: 'currency' as const },
+  { header: 'Costo MTC',        key: 'costo_mtc',        format: 'currency' as const },
+  { header: 'Costos Red',       key: 'costos_red',       format: 'currency' as const },
+  { header: 'Costos Totales',   key: 'costos_totales',   format: 'currency' as const },
+  { header: 'P. Comercial IGV', key: 'precio_comercial', format: 'currency' as const },
+  { header: 'P. sin IGV',       key: 'precio_sin_igv',   format: 'currency' as const },
+  { header: 'Margen Red',       key: 'margen_red',       format: 'currency' as const },
+  { header: 'Margen Red %',     key: 'margen_red_pct',   format: 'percent'  as const },
+  { header: 'Margen Bruto',     key: 'margen_bruto',     format: 'currency' as const },
+  { header: 'Margen Bruto %',   key: 'margen_bruto_pct', format: 'percent'  as const },
+];
+
 // ─── Construcción de filas ────────────────────────────────────────────────────
 function buildRows(api: Record<string, PlanAPI>): PlanRow[] {
   return PLANES_BASE.map(p => {
@@ -83,19 +114,15 @@ function buildRows(api: Record<string, PlanAPI>): PlanRow[] {
 function calcRow(r: PlanRow) {
   const uso_data_pct    = r.datos_plan_mb > 0 ? r.uso_data_mb / r.datos_plan_mb : 0;
   const uso_voz_ent_min = +(r.uso_voz_sal_min * 0.85).toFixed(2);
-
   const u = r.num_usuarios;
 
-  // Totales del plan (solo para display)
   const display_uso_data = r.uso_data_mb     * u;
   const display_voz_sal  = r.uso_voz_sal_min * u;
   const display_voz_ent  = uso_voz_ent_min   * u;
   const display_sms      = r.uso_sms_unit    * u;
 
-  // Precio sin IGV por usuario: precio_comercial (con IGV) / 1.18
   const precio_sin_igv = +(r.precio_comercial / IGV).toFixed(4);
 
-  // Costos por usuario
   const costo_data    = +(r.uso_data_mb     * PRECIO_DATA_MB * FACTOR_DATA).toFixed(2);
   const costo_voz_sal = +(r.uso_voz_sal_min * PRECIO_VOZ_SAL).toFixed(2);
   const costo_voz_ent = +(uso_voz_ent_min   * PRECIO_VOZ_ENT).toFixed(2);
@@ -103,24 +130,18 @@ function calcRow(r: PlanRow) {
   const costos_red    = +(costo_data + costo_voz_sal + costo_voz_ent + costo_sms).toFixed(2);
 
   const costo_crm      = COSTO_CRM;
-  // MTC = PCT_MTC × precio_comercial (con IGV)
   const costo_mtc      = +(r.precio_comercial * PCT_MTC).toFixed(2);
   const costos_totales = +(costos_red + costo_crm + costo_mtc).toFixed(2);
 
-  // Márgenes por usuario
   const margen_red       = +(precio_sin_igv - costos_red).toFixed(2);
   const margen_red_pct   = precio_sin_igv > 0 ? margen_red   / precio_sin_igv : 0;
   const margen_bruto     = +(precio_sin_igv - costos_totales).toFixed(2);
   const margen_bruto_pct = precio_sin_igv > 0 ? margen_bruto / precio_sin_igv : 0;
 
   return {
-    uso_data_pct,
-    uso_voz_ent_min,
+    uso_data_pct, uso_voz_ent_min,
     display_datos_plan: r.datos_plan_mb,
-    display_uso_data,
-    display_voz_sal,
-    display_voz_ent,
-    display_sms,
+    display_uso_data, display_voz_sal, display_voz_ent, display_sms,
     costo_data, costo_voz_sal, costo_voz_ent, costo_sms,
     costo_crm, costo_mtc, costos_red, costos_totales,
     precio_comercial: r.precio_comercial,
@@ -187,7 +208,6 @@ export default function AnalisisPlanesPage() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function fetchData() {
       setLoading(true);
       try {
@@ -195,27 +215,52 @@ export default function AnalisisPlanesPage() {
         const api = await r.json() as Record<string, PlanAPI>;
         if (cancelled) return;
         setRows(buildRows(api));
-      } catch {
-        // silencioso
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      } catch { /* silencioso */ }
+      finally { if (!cancelled) setLoading(false); }
     }
-
     fetchData();
     return () => { cancelled = true; };
   }, [mes]);
 
+  const fecha         = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
   const mesLabel      = MESES_DISPONIBLES.find(m => m.value === mes)?.label ?? mes;
   const totalUsuarios = rows.reduce((a, r) => a + r.num_usuarios, 0);
   const calcs         = rows.map(r => ({ ...calcRow(r), u: r.num_usuarios }));
 
-  // Totales: suma de (valor_por_usuario × usuarios)
   const wsum = (fn: (c: ReturnType<typeof calcRow> & { u: number }) => number) =>
     calcs.reduce((a, c) => a + fn(c) * c.u, 0);
-  // Promedio ponderado por usuarios
   const wavg = (fn: (c: ReturnType<typeof calcRow> & { u: number }) => number) =>
     totalUsuarios > 0 ? calcs.reduce((a, c) => a + fn(c) * c.u, 0) / totalUsuarios : 0;
+
+  // Datos para Excel: combinar PlanRow + calcRow por fila
+  const excelData = rows.map(r => {
+    const c = calcRow(r);
+    return {
+      codigo:           r.codigo,
+      nombre:           r.nombre,
+      num_usuarios:     r.num_usuarios,
+      datos_plan_mb:    r.datos_plan_mb,
+      uso_data_mb:      r.uso_data_mb,
+      uso_data_pct:     +(c.uso_data_pct * 100).toFixed(2),
+      uso_voz_sal_min:  r.uso_voz_sal_min,
+      uso_voz_ent_min:  c.uso_voz_ent_min,
+      uso_sms_unit:     r.uso_sms_unit,
+      costo_data:       c.costo_data,
+      costo_voz_sal:    c.costo_voz_sal,
+      costo_voz_ent:    c.costo_voz_ent,
+      costo_sms:        c.costo_sms,
+      costo_crm:        c.costo_crm,
+      costo_mtc:        c.costo_mtc,
+      costos_red:       c.costos_red,
+      costos_totales:   c.costos_totales,
+      precio_comercial: c.precio_comercial,
+      precio_sin_igv:   c.precio_sin_igv,
+      margen_red:       c.margen_red,
+      margen_red_pct:   +(c.margen_red_pct * 100).toFixed(2),
+      margen_bruto:     c.margen_bruto,
+      margen_bruto_pct: +(c.margen_bruto_pct * 100).toFixed(2),
+    };
+  }) as Record<string, unknown>[];
 
   return (
     <div>
@@ -231,7 +276,7 @@ export default function AnalisisPlanesPage() {
           </p>
         </div>
 
-        {/* Selector de mes */}
+        {/* Controles */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace' }}>MES</span>
           <select
@@ -248,144 +293,175 @@ export default function AnalisisPlanesPage() {
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
           </select>
+          <ExportExcel
+            data={excelData}
+            columns={EXCEL_COLUMNS}
+            filename={`analisis-planes-${mes}`}
+            sheetName={`Planes ${mesLabel}`}
+          />
+          <ExportPDF targetId={REPORT_ID} filename={`analisis-planes-${mes}`} />
         </div>
       </div>
 
-      {/* ── Leyenda ── */}
-      <div style={{
-        display: 'flex', gap: '24px', marginBottom: '20px', padding: '12px 16px',
-        background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', flexWrap: 'wrap',
-      }}>
-        {[
-          ['Data',     `S/.${PRECIO_DATA_MB} × MB × ${FACTOR_DATA}`],
-          ['Voz Sal.', `S/.${PRECIO_VOZ_SAL}/min`],
-          ['Voz Ent.', `S/.${PRECIO_VOZ_ENT}/min`],
-          ['SMS',      `S/.${PRECIO_SMS}/unit`],
-          ['CRM',      `S/.${COSTO_CRM}/usr`],
-          ['MTC',      `${(PCT_MTC * 100).toFixed(4)}% × P.comercial`],
-          ['IGV',      '18%'],
-        ].map(([k, v]) => (
-          <div key={k} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace', fontWeight: '600' }}>{k}</span>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'DM Mono, monospace' }}>{v}</span>
-          </div>
-        ))}
-        <span style={{
-          fontSize: '11px', fontFamily: 'DM Mono, monospace', marginLeft: 'auto',
-          color: loading ? '#f59e0b' : 'var(--accent-green)',
+      <div id={REPORT_ID}>
+        {/* Solo visible en PDF */}
+        <div className="pdf-only" style={{ marginBottom: '20px' }}>
+          <p style={{ fontSize: '18px', fontWeight: '700', marginBottom: '2px' }}>Análisis de Planes — PeruSIM 2023</p>
+          <p style={{ fontSize: '11px', letterSpacing: '0.5px' }}>{mesLabel.toUpperCase()} · Generado el {fecha}</p>
+        </div>
+
+        {/* ── Leyenda ── */}
+        <div style={{
+          display: 'flex', gap: '24px', marginBottom: '20px', padding: '12px 16px',
+          background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', flexWrap: 'wrap',
         }}>
-          {loading ? '● cargando...' : `● ${totalUsuarios.toLocaleString('es-PE')} usuarios activos`}
-        </span>
-      </div>
+          {[
+            ['Data',     `S/.${PRECIO_DATA_MB} × MB × ${FACTOR_DATA}`],
+            ['Voz Sal.', `S/.${PRECIO_VOZ_SAL}/min`],
+            ['Voz Ent.', `S/.${PRECIO_VOZ_ENT}/min`],
+            ['SMS',      `S/.${PRECIO_SMS}/unit`],
+            ['CRM',      `S/.${COSTO_CRM}/usr`],
+            ['MTC',      `${(PCT_MTC * 100).toFixed(4)}% × P.comercial`],
+            ['IGV',      '18%'],
+          ].map(([k, v]) => (
+            <div key={k} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace', fontWeight: '600' }}>{k}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'DM Mono, monospace' }}>{v}</span>
+            </div>
+          ))}
+          <span style={{
+            fontSize: '11px', fontFamily: 'DM Mono, monospace', marginLeft: 'auto',
+            color: loading ? '#f59e0b' : 'var(--accent-green)',
+          }}>
+            {loading ? '● cargando...' : `● ${totalUsuarios.toLocaleString('es-PE')} usuarios activos`}
+          </span>
+        </div>
 
-      {/* ── Tabla ── */}
-      <div style={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid var(--border)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--bg-card)' }}>
-          <thead>
-            <tr>
-              <th colSpan={3} style={{ background: 'var(--bg-base)', borderBottom: '1px solid var(--border)' }} />
-              <GroupHeader label="CAPACIDAD"    color="#1d4ed8" />
-              <GroupHeader label="USO DATA"     color="#0369a1" span={2} />
-              <GroupHeader label="VOZ SALIENTE" color="#7c3aed" />
-              <GroupHeader label="VOZ ENTRANTE" color="#6d28d9" />
-              <GroupHeader label="SMS"          color="#9333ea" />
-              <GroupHeader label="COSTOS"       color="#b45309" span={6} />
-              <GroupHeader label="C. RED"       color="#92400e" />
-              <GroupHeader label="C. TOTALES"   color="#7f1d1d" />
-              <GroupHeader label="PRECIOS"      color="#1e5631" span={2} />
-              <GroupHeader label="MÁRGENES"     color="#065f46" span={4} />
-            </tr>
-            <tr>
-              <ColHeaderLeft>Código</ColHeaderLeft>
-              <ColHeaderLeft>Nombre del Plan</ColHeaderLeft>
-              <ColHeader>Usuarios</ColHeader>
-              <ColHeader sub="MB">Datos Plan</ColHeader>
-              <ColHeader sub="MB/usr">Uso Data</ColHeader>
-              <ColHeader>%</ColHeader>
-              <ColHeader sub="min/usr">Voz Sal.</ColHeader>
-              <ColHeader sub="min/usr">Voz Ent.</ColHeader>
-              <ColHeader sub="unit/usr">SMS</ColHeader>
-              <ColHeader>Data</ColHeader>
-              <ColHeader>Voz Sal.</ColHeader>
-              <ColHeader>Voz Ent.</ColHeader>
-              <ColHeader>SMS</ColHeader>
-              <ColHeader>CRM</ColHeader>
-              <ColHeader>MTC</ColHeader>
-              <ColHeader>Red</ColHeader>
-              <ColHeader>Totales</ColHeader>
-              <ColHeader sub="c/IGV">P. Comercial</ColHeader>
-              <ColHeader sub="s/IGV">P. sin IGV</ColHeader>
-              <ColHeader>Mg. Red</ColHeader>
-              <ColHeader>%</ColHeader>
-              <ColHeader>Mg. Bruto</ColHeader>
-              <ColHeader>%</ColHeader>
-            </tr>
-          </thead>
+        {/* ── Tabla ── */}
+        <div style={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid var(--border)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--bg-card)' }}>
+            <thead>
+              <tr>
+                <th colSpan={3} style={{ background: 'var(--bg-base)', borderBottom: '1px solid var(--border)' }} />
+                <GroupHeader label="CAPACIDAD"    color="#1d4ed8" />
+                <GroupHeader label="USO DATA"     color="#0369a1" span={2} />
+                <GroupHeader label="VOZ SALIENTE" color="#7c3aed" />
+                <GroupHeader label="VOZ ENTRANTE" color="#6d28d9" />
+                <GroupHeader label="SMS"          color="#9333ea" />
+                <GroupHeader label="COSTOS"       color="#b45309" span={6} />
+                <GroupHeader label="C. RED"       color="#92400e" />
+                <GroupHeader label="C. TOTALES"   color="#7f1d1d" />
+                <GroupHeader label="PRECIOS"      color="#1e5631" span={2} />
+                <GroupHeader label="MÁRGENES"     color="#065f46" span={4} />
+              </tr>
+              <tr>
+                <ColHeaderLeft>Código</ColHeaderLeft>
+                <ColHeaderLeft>Nombre del Plan</ColHeaderLeft>
+                <ColHeader>Usuarios</ColHeader>
+                <ColHeader sub="MB">Datos Plan</ColHeader>
+                <ColHeader sub="MB/usr">Uso Data</ColHeader>
+                <ColHeader>%</ColHeader>
+                <ColHeader sub="min/usr">Voz Sal.</ColHeader>
+                <ColHeader sub="min/usr">Voz Ent.</ColHeader>
+                <ColHeader sub="unit/usr">SMS</ColHeader>
+                <ColHeader>Data</ColHeader>
+                <ColHeader>Voz Sal.</ColHeader>
+                <ColHeader>Voz Ent.</ColHeader>
+                <ColHeader>SMS</ColHeader>
+                <ColHeader>CRM</ColHeader>
+                <ColHeader>MTC</ColHeader>
+                <ColHeader>Red</ColHeader>
+                <ColHeader>Totales</ColHeader>
+                <ColHeader sub="c/IGV">P. Comercial</ColHeader>
+                <ColHeader sub="s/IGV">P. sin IGV</ColHeader>
+                <ColHeader>Mg. Red</ColHeader>
+                <ColHeader>%</ColHeader>
+                <ColHeader>Mg. Bruto</ColHeader>
+                <ColHeader>%</ColHeader>
+              </tr>
+            </thead>
 
-          <tbody>
-            {rows.map((r, i) => {
-              const c = calcRow(r);
-              const mgColor = c.margen_bruto_pct >= 0.80 ? 'var(--accent-green)'
-                            : c.margen_bruto_pct >= 0.60 ? '#fbbf24' : '#f87171';
-              return (
-                <tr key={r.codigo} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
-                  <td style={{
-                    padding: '7px 10px', fontFamily: 'DM Mono, monospace', fontSize: '11px',
-                    color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap',
-                  }}>
-                    {r.codigo}
+            <tbody>
+              {rows.map((r, i) => {
+                const c = calcRow(r);
+                const mgColor = c.margen_bruto_pct >= 0.80 ? 'var(--accent-green)'
+                              : c.margen_bruto_pct >= 0.60 ? '#fbbf24' : '#f87171';
+                return (
+                  <tr key={r.codigo} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                    <td style={{ padding: '7px 10px', fontFamily: 'DM Mono, monospace', fontSize: '11px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                      {r.codigo}
+                    </td>
+                    <td style={{ padding: '7px 10px', fontSize: '13px', color: 'var(--text-primary)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap', minWidth: '180px' }}>
+                      {r.nombre}
+                    </td>
+                    <Cell value={loading ? '—' : N(r.num_usuarios, 0)} color="#93c5fd" bold />
+                    <Cell value={N(c.display_datos_plan, 0)} />
+                    <Cell value={N(r.uso_data_mb)}       color="#7dd3fc" />
+                    <Cell value={P(c.uso_data_pct)}      color="#7dd3fc" />
+                    <Cell value={N(r.uso_voz_sal_min)}   color="#c4b5fd" />
+                    <Cell value={N(c.uso_voz_ent_min)}   color="#c4b5fd" />
+                    <Cell value={N(r.uso_sms_unit)}      color="#e9d5ff" />
+                    <Cell value={S(c.costo_data)}        color="#fde68a" />
+                    <Cell value={S(c.costo_voz_sal)}     color="#fde68a" />
+                    <Cell value={S(c.costo_voz_ent)}     color="#fde68a" />
+                    <Cell value={S(c.costo_sms)}         color="#fde68a" />
+                    <Cell value={S(c.costo_crm)}         color="#fde68a" />
+                    <Cell value={S(c.costo_mtc)}         color="#fde68a" />
+                    <Cell value={S(c.costos_red)}        color="#fb923c" bold />
+                    <Cell value={S(c.costos_totales)}    color="#f87171" bold />
+                    <Cell value={S(c.precio_comercial)}  color="#86efac" bold />
+                    <Cell value={S(c.precio_sin_igv)}    color="#6ee7b7" bold />
+                    <Cell value={S(c.margen_red)}        color="#4ade80" bold />
+                    <Cell value={P(c.margen_red_pct)}    color="#4ade80" bold />
+                    <Cell value={S(c.margen_bruto)}      color={mgColor}  bold />
+                    <Cell value={P(c.margen_bruto_pct)}  color={mgColor}  bold />
+                  </tr>
+                );
+              })}
+            </tbody>
+
+            <tfoot>
+              <tr style={{ background: 'rgba(59,130,246,0.06)' }}>
+                <td colSpan={2} style={{ padding: '9px 10px', fontSize: '12px', fontWeight: '600', fontFamily: 'DM Mono, monospace', color: 'var(--text-primary)', borderTop: '2px solid var(--border)' }}>
+                  TOTAL / PROMEDIO PONDERADO
+                </td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '12px', fontWeight: '600', color: '#93c5fd', borderTop: '2px solid var(--border)' }}>
+                  {N(totalUsuarios, 0)}
+                </td>
+                {/* vacíos: datos_plan, uso_data, %, voz_sal, voz_ent, sms */}
+                {Array.from({ length: 6 }).map((_, k) => (
+                  <td key={k} style={{ borderTop: '2px solid var(--border)' }} />
+                ))}
+                {([
+                  [wsum(c => c.costo_data),        '#fde68a'],
+                  [wsum(c => c.costo_voz_sal),     '#fde68a'],
+                  [wsum(c => c.costo_voz_ent),     '#fde68a'],
+                  [wsum(c => c.costo_sms),         '#fde68a'],
+                  [wsum(c => c.costo_crm),         '#fde68a'],
+                  [wsum(c => c.costo_mtc),         '#fde68a'],
+                  [wsum(c => c.costos_red),        '#fb923c'],
+                  [wsum(c => c.costos_totales),    '#f87171'],
+                  [wsum(c => c.precio_comercial),  '#86efac'],
+                  [wsum(c => c.precio_sin_igv),    '#6ee7b7'],
+                  [wsum(c => c.margen_red),        '#4ade80'],
+                ] as [number, string][]).map(([val, color], k) => (
+                  <td key={k} style={{ padding: '9px 10px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '12px', fontWeight: '600', color, borderTop: '2px solid var(--border)', whiteSpace: 'nowrap' }}>
+                    {S(val)}
                   </td>
-                  <td style={{
-                    padding: '7px 10px', fontSize: '13px', color: 'var(--text-primary)',
-                    borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap', minWidth: '180px',
-                  }}>
-                    {r.nombre}
-                  </td>
-                  <Cell value={loading ? '—' : N(r.num_usuarios, 0)} color="#93c5fd" bold />
-                  <Cell value={N(c.display_datos_plan, 0)} />
-                  <Cell value={N(r.uso_data_mb)}       color="#7dd3fc" />
-                  <Cell value={P(c.uso_data_pct)}      color="#7dd3fc" />
-                  <Cell value={N(r.uso_voz_sal_min)}   color="#c4b5fd" />
-                  <Cell value={N(c.uso_voz_ent_min)}   color="#c4b5fd" />
-                  <Cell value={N(r.uso_sms_unit)}      color="#e9d5ff" />
-                  <Cell value={S(c.costo_data)}        color="#fde68a" />
-                  <Cell value={S(c.costo_voz_sal)}     color="#fde68a" />
-                  <Cell value={S(c.costo_voz_ent)}     color="#fde68a" />
-                  <Cell value={S(c.costo_sms)}         color="#fde68a" />
-                  <Cell value={S(c.costo_crm)}         color="#fde68a" />
-                  <Cell value={S(c.costo_mtc)}         color="#fde68a" />
-                  <Cell value={S(c.costos_red)}        color="#fb923c" bold />
-                  <Cell value={S(c.costos_totales)}    color="#f87171" bold />
-                  <Cell value={S(c.precio_comercial)}  color="#86efac" bold />
-                  <Cell value={S(c.precio_sin_igv)}    color="#6ee7b7" bold />
-                  <Cell value={S(c.margen_red)}        color="#4ade80" bold />
-                  <Cell value={P(c.margen_red_pct)}    color="#4ade80" bold />
-                  <Cell value={S(c.margen_bruto)}      color={mgColor}  bold />
-                  <Cell value={P(c.margen_bruto_pct)}  color={mgColor}  bold />
-                </tr>
-              );
-            })}
-          </tbody>
-
-          <tfoot>
-            <tr style={{ background: 'rgba(59,130,246,0.06)' }}>
-              <td colSpan={2} style={{
-                padding: '9px 10px', fontSize: '12px', fontWeight: '600',
-                fontFamily: 'DM Mono, monospace', color: 'var(--text-primary)',
-                borderTop: '2px solid var(--border)',
-              }}>
-                TOTAL / PROMEDIO PONDERADO
-              </td>
-              <td style={{
-                padding: '9px 10px', textAlign: 'right', fontFamily: 'DM Mono, monospace',
-                fontSize: '12px', fontWeight: '600', color: '#93c5fd',
-                borderTop: '2px solid var(--border)',
-              }}>
-                {N(totalUsuarios, 0)}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+                ))}
+                <td style={{ padding: '9px 10px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '12px', fontWeight: '600', color: '#4ade80', borderTop: '2px solid var(--border)', whiteSpace: 'nowrap' }}>
+                  {P(wavg(c => c.margen_red_pct))}
+                </td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '12px', fontWeight: '600', color: '#4ade80', borderTop: '2px solid var(--border)', whiteSpace: 'nowrap' }}>
+                  {S(wsum(c => c.margen_bruto))}
+                </td>
+                <td style={{ padding: '9px 10px', textAlign: 'right', fontFamily: 'DM Mono, monospace', fontSize: '12px', fontWeight: '600', color: '#4ade80', borderTop: '2px solid var(--border)', whiteSpace: 'nowrap' }}>
+                  {P(wavg(c => c.margen_bruto_pct))}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
 
       <p style={{ marginTop: '12px', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace' }}>
