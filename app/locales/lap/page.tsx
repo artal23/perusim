@@ -1,23 +1,9 @@
 'use client';
 import { useEffect, useState, useMemo } from 'react';
-import ExportExcel from '@/components/ExportExcel';
+// import ExportExcel from '@/components/ExportExcel';
+import ExportExcelLocal, { LocalData }   from '@/components/ExportExcelLocal';
 
-interface LapData {
-  mes: string;
-  nuevos_clientes: number; clientes_activos: number;
-  ingresos_planes: number; ingresos_activation: number; ingresos_recargas: number;
-  total_con_igv: number; total_sin_igv: number;
-  costo_data: number; costo_voz_sal: number; costo_voz_ent: number; costo_sms: number;
-  costo_red: number; costo_crm: number; costo_mtc: number; costo_sim: number;
-  costo_vias: number; costo_bio: number; gastos_variables: number;
-  renta_espacio: number; marketing: number; software_licencias: number;
-  soporte: number; incentivo_fijo: number; incentivo_variable: number;
-  gastos_otros: number; gastos_totales: number;
-  margen_red: number; margen_red_pct: number;
-  margen_bruto: number; margen_bruto_pct: number;
-}
 
-// Orden cronológico correcto para Mon-YY
 const MES_ORDER: Record<string, number> = {
   Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6,
   Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12,
@@ -34,42 +20,7 @@ const S = (v: number) => `S/.${Number(v).toLocaleString('es-PE', { minimumFracti
 const P = (v: number) => `${Number(v).toFixed(2)}%`;
 
 
-const REPORT_ID = 'reporte-kennedy';
-
-
-const EXCEL_COLUMNS = [
-  { header: 'Mes',                      key: 'mes',                format: 'text'     as const },
-  { header: 'Nuevos Clientes',          key: 'nuevos_clientes',    format: 'number'   as const },
-  { header: 'Clientes Activos',         key: 'clientes_activos',   format: 'number'   as const },
-  { header: 'Ingresos Planes',          key: 'ingresos_planes',    format: 'currency' as const },
-  { header: 'Activation Fee',          key: 'ingresos_activation', format: 'currency' as const },
-  { header: 'Recargas',                 key: 'ingresos_recargas',  format: 'currency' as const },
-  { header: 'Total con IGV',            key: 'total_con_igv',      format: 'currency' as const },
-  { header: 'Total sin IGV',            key: 'total_sin_igv',      format: 'currency' as const },
-  { header: 'Costo Data',              key: 'costo_data',          format: 'currency' as const },
-  { header: 'Costo Voz Saliente',       key: 'costo_voz_sal',      format: 'currency' as const },
-  { header: 'Costo Voz Entrante',       key: 'costo_voz_ent',      format: 'currency' as const },
-  { header: 'Costo SMS',               key: 'costo_sms',           format: 'currency' as const },
-  { header: 'Costos de Red',           key: 'costo_red',           format: 'currency' as const },
-  { header: 'Costo CRM',               key: 'costo_crm',           format: 'currency' as const },
-  { header: 'Costo MTC',               key: 'costo_mtc',           format: 'currency' as const },
-  { header: 'Costo SIM',               key: 'costo_sim',           format: 'currency' as const },
-  { header: 'Vías de Pago',            key: 'costo_vias',          format: 'currency' as const },
-  { header: 'Biometría',               key: 'costo_bio',           format: 'currency' as const },
-  { header: 'Gastos Variables',         key: 'gastos_variables',   format: 'currency' as const },
-  { header: 'Renta Espacio',           key: 'renta_espacio',       format: 'currency' as const },
-  { header: 'Marketing',               key: 'marketing',           format: 'currency' as const },
-  { header: 'Software y Licencias',     key: 'software_licencias', format: 'currency' as const },
-  { header: 'Soporte',                 key: 'soporte',             format: 'currency' as const },
-  { header: 'Incentivo Fijo',          key: 'incentivo_fijo',      format: 'currency' as const },
-  { header: 'Incentivo Variable',       key: 'incentivo_variable', format: 'currency' as const },
-  { header: 'Otros Costos',            key: 'gastos_otros',        format: 'currency' as const },
-  { header: 'Gastos Totales',          key: 'gastos_totales',      format: 'currency' as const },
-  { header: 'Margen de Red',           key: 'margen_red',          format: 'currency' as const },
-  { header: 'Margen de Red (%)',        key: 'margen_red_pct',     format: 'percent'  as const },
-  { header: 'Margen Bruto',            key: 'margen_bruto',        format: 'currency' as const },
-  { header: 'Margen Bruto (%)',         key: 'margen_bruto_pct',   format: 'percent'  as const },
-];
+const REPORT_ID = 'reporte-lap';
 
 
 function SecHeader({ title }: { title: string }) {
@@ -129,14 +80,14 @@ function Row({ label, value, bold, indent, color }: {
 }
 
 export default function LapPage() {
-  const [data, setData]       = useState<LapData[]>([]);
+  const [data, setData]       = useState<LocalData[]>([]);
   const [loading, setLoading] = useState(true);
   const [mesFiltro, setMesFiltro] = useState<string>('');
 
   useEffect(() => {
     fetch('/api/locales/lap')
       .then(r => r.json())
-      .then((d: LapData[]) => {
+      .then((d: LocalData[]) => {
         const sorted = [...d].sort((a, b) => sortMeses(a.mes, b.mes));
         setData(sorted);
         if (sorted.length > 0) setMesFiltro(sorted[sorted.length - 1].mes);
@@ -159,12 +110,6 @@ export default function LapPage() {
     [data, mesesVisibles]
   );
 
-  const excelData = data.map(r => ({
-    ...r,
-    margen_red_pct:   +r.margen_red_pct.toFixed(2),
-    margen_bruto_pct: +r.margen_bruto_pct.toFixed(2),
-  })) as Record<string, unknown>[];
-
 
   if (loading) return (
     <div style={{ color: 'var(--text-secondary)', fontFamily: 'DM Mono, monospace' }}>Cargando...</div>
@@ -182,11 +127,10 @@ export default function LapPage() {
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '16px', fontFamily: 'DM Mono, monospace' }}>MODELO RENTABILIDAD · PERUSIM MIRAFLORES</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
-          <ExportExcel
-            data={excelData}
-            columns={EXCEL_COLUMNS}
+          <ExportExcelLocal
+            data={data}
+            localName='Lap'
             filename="lap-perusim-2023"
-            sheetName="Lap - Rentabilidad"
           />
           {/* <ExportPDF targetId={REPORT_ID} filename="lap-perusim-2023" /> */}
         </div>
