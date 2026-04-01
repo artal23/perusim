@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect } from 'react';
-import ExportPDF   from '@/components/ExportPDF';
 import ExportExcel from '@/components/ExportExcel';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -299,16 +298,11 @@ export default function AnalisisPlanesPage() {
             filename={`analisis-planes-${mes}`}
             sheetName={`Planes ${mesLabel}`}
           />
-          <ExportPDF targetId={REPORT_ID} filename={`analisis-planes-${mes}`} />
+          {/* <ExportPDF targetId={REPORT_ID} filename={`analisis-planes-${mes}`} /> */}
         </div>
       </div>
 
       <div id={REPORT_ID}>
-        {/* Solo visible en PDF */}
-        <div className="pdf-only" style={{ marginBottom: '20px' }}>
-          <p style={{ fontSize: '18px', fontWeight: '700', marginBottom: '2px' }}>Análisis de Planes — PeruSIM 2023</p>
-          <p style={{ fontSize: '11px', letterSpacing: '0.5px' }}>{mesLabel.toUpperCase()} · Generado el {fecha}</p>
-        </div>
 
         {/* ── Leyenda ── */}
         <div style={{

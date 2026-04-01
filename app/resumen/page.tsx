@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import ExportPDF from '@/components/ExportPDF';
+import ExportExcel from '@/components/ExportExcel';
 
 interface ResumenRow {
   local:            string;
@@ -12,6 +12,12 @@ const S = (v: number) =>
   `S/.${Number(v).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const REPORT_ID = 'reporte-resumen';
+
+const EXCEL_COLUMNS = [
+  { header: 'Local',            key: 'local',            format: 'text'     as const },
+  { header: 'Ingresos sin IGV', key: 'ingresos_sin_igv', format: 'currency' as const },
+  { header: 'Ingresos con IGV', key: 'ingresos_con_igv', format: 'currency' as const },
+];
 
 export default function ResumenPage() {
   const [data, setData]       = useState<ResumenRow[]>([]);
@@ -44,6 +50,12 @@ export default function ResumenPage() {
     </p>
   );
 
+  const excelData = data.map(r => ({
+    local:            r.local,
+    ingresos_sin_igv: Number(r.ingresos_sin_igv),
+    ingresos_con_igv: Number(r.ingresos_con_igv),
+  })) as Record<string, unknown>[];
+
   return (
     <div>
       {/* ── Cabecera ── */}
@@ -57,18 +69,19 @@ export default function ResumenPage() {
             INGRESOS POR LOCAL · PERUSIM 2023
           </p>
         </div>
-        <ExportPDF targetId={REPORT_ID} filename="resumen-perusim-2023" />
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <ExportExcel
+            data={excelData}
+            columns={EXCEL_COLUMNS}
+            filename="resumen-perusim-2023"
+            sheetName="Resumen General"
+          />
+          {/* <ExportPDF targetId={REPORT_ID} filename="resumen-perusim-2023" /> */}
+        </div>
       </div>
 
       {/* ── Contenido del reporte ── */}
       <div id={REPORT_ID}>
-
-        {/* Solo visible en PDF */}
-        <div className="pdf-only" style={{ marginBottom: '20px' }}>
-          <p style={{ fontSize: '18px', fontWeight: '700', marginBottom: '2px' }}>Resumen General — PeruSIM 2023</p>
-          <p style={{ fontSize: '11px', letterSpacing: '0.5px' }}>INGRESOS POR LOCAL · Generado el {fecha}</p>
-        </div>
-
         {/* Tarjetas */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', marginBottom: '28px' }}>
           {[
@@ -141,10 +154,6 @@ export default function ResumenPage() {
           </table>
         </div>
 
-        {/* Solo visible en PDF */}
-        <p className="pdf-only" style={{ marginTop: '20px', fontSize: '10px' }}>
-          Generado el {fecha} · PeruSIM 2023 · Reporte interno
-        </p>
 
       </div>
     </div>

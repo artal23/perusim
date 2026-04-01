@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState, useMemo } from 'react';
-import ExportPDF   from '@/components/ExportPDF';
 import ExportExcel from '@/components/ExportExcel';
 
 interface Row {
@@ -112,7 +111,7 @@ export default function TDDataPage() {
               filename={`td-data-${localActivo.toLowerCase()}-perusim-2023`}
               sheetName={`${localActivo} - TD Data`}
             />
-            <ExportPDF targetId={REPORT_ID} filename={`td-data-${localActivo.toLowerCase()}-perusim-2023`} />
+            {/* <ExportPDF targetId={REPORT_ID} filename={`td-data-${localActivo.toLowerCase()}-perusim-2023`} /> */}
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useMemo } from 'react';
+import ExportExcel from '@/components/ExportExcel';
 
 interface LarcoData {
   mes: string;
@@ -31,6 +32,45 @@ function sortMeses(a: string, b: string) {
 
 const S = (v: number) => `S/.${Number(v).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`;
 const P = (v: number) => `${Number(v).toFixed(2)}%`;
+
+
+const REPORT_ID = 'reporte-kennedy';
+
+
+const EXCEL_COLUMNS = [
+  { header: 'Mes',                      key: 'mes',                format: 'text'     as const },
+  { header: 'Nuevos Clientes',          key: 'nuevos_clientes',    format: 'number'   as const },
+  { header: 'Clientes Activos',         key: 'clientes_activos',   format: 'number'   as const },
+  { header: 'Ingresos Planes',          key: 'ingresos_planes',    format: 'currency' as const },
+  { header: 'Activation Fee',          key: 'ingresos_activation', format: 'currency' as const },
+  { header: 'Recargas',                 key: 'ingresos_recargas',  format: 'currency' as const },
+  { header: 'Total con IGV',            key: 'total_con_igv',      format: 'currency' as const },
+  { header: 'Total sin IGV',            key: 'total_sin_igv',      format: 'currency' as const },
+  { header: 'Costo Data',              key: 'costo_data',          format: 'currency' as const },
+  { header: 'Costo Voz Saliente',       key: 'costo_voz_sal',      format: 'currency' as const },
+  { header: 'Costo Voz Entrante',       key: 'costo_voz_ent',      format: 'currency' as const },
+  { header: 'Costo SMS',               key: 'costo_sms',           format: 'currency' as const },
+  { header: 'Costos de Red',           key: 'costo_red',           format: 'currency' as const },
+  { header: 'Costo CRM',               key: 'costo_crm',           format: 'currency' as const },
+  { header: 'Costo MTC',               key: 'costo_mtc',           format: 'currency' as const },
+  { header: 'Costo SIM',               key: 'costo_sim',           format: 'currency' as const },
+  { header: 'Vías de Pago',            key: 'costo_vias',          format: 'currency' as const },
+  { header: 'Biometría',               key: 'costo_bio',           format: 'currency' as const },
+  { header: 'Gastos Variables',         key: 'gastos_variables',   format: 'currency' as const },
+  { header: 'Renta Espacio',           key: 'renta_espacio',       format: 'currency' as const },
+  { header: 'Marketing',               key: 'marketing',           format: 'currency' as const },
+  { header: 'Software y Licencias',     key: 'software_licencias', format: 'currency' as const },
+  { header: 'Soporte',                 key: 'soporte',             format: 'currency' as const },
+  { header: 'Incentivo Fijo',          key: 'incentivo_fijo',      format: 'currency' as const },
+  { header: 'Incentivo Variable',       key: 'incentivo_variable', format: 'currency' as const },
+  { header: 'Otros Costos',            key: 'gastos_otros',        format: 'currency' as const },
+  { header: 'Gastos Totales',          key: 'gastos_totales',      format: 'currency' as const },
+  { header: 'Margen de Red',           key: 'margen_red',          format: 'currency' as const },
+  { header: 'Margen de Red (%)',        key: 'margen_red_pct',     format: 'percent'  as const },
+  { header: 'Margen Bruto',            key: 'margen_bruto',        format: 'currency' as const },
+  { header: 'Margen Bruto (%)',         key: 'margen_bruto_pct',   format: 'percent'  as const },
+];
+
 
 function SecHeader({ title }: { title: string }) {
   return (
@@ -123,6 +163,13 @@ export default function LarcoPage() {
     [data, mesesVisibles]
   );
 
+  const excelData = data.map(r => ({
+    ...r,
+    margen_red_pct:   +r.margen_red_pct.toFixed(2),
+    margen_bruto_pct: +r.margen_bruto_pct.toFixed(2),
+  })) as Record<string, unknown>[];
+
+
   if (loading) return (
     <div style={{ color: 'var(--text-secondary)', fontFamily: 'DM Mono, monospace' }}>Cargando...</div>
   );
@@ -130,12 +177,23 @@ export default function LarcoPage() {
   return (
     <div>
       {/* Título */}
-      <div style={{ marginBottom: '28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-          <div style={{ width: '4px', height: '28px', borderRadius: '2px', background: 'linear-gradient(180deg, #3b82f6, #10b981)' }} />
-          <h1 style={{ fontSize: '22px', fontWeight: '600', letterSpacing: '-0.5px' }}>Larco</h1>
+      <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
+            <div style={{ width: '4px', height: '28px', borderRadius: '2px', background: 'linear-gradient(180deg, #3b82f6, #10b981)' }} />
+            <h1 style={{ fontSize: '22px', fontWeight: '600', letterSpacing: '-0.5px' }}>Larco</h1>
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '16px', fontFamily: 'DM Mono, monospace' }}>MODELO RENTABILIDAD · PERUSIM MIRAFLORES</p>
         </div>
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '16px', fontFamily: 'DM Mono, monospace' }}>MODELO RENTABILIDAD · PERUSIM MIRAFLORES</p>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+          <ExportExcel
+            data={excelData}
+            columns={EXCEL_COLUMNS}
+            filename="larco-perusim-2023"
+            sheetName="Larco - Rentabilidad"
+          />
+          {/* <ExportPDF targetId={REPORT_ID} filename="larco-perusim-2023" /> */}
+        </div>
       </div>
 
       {/* Filtro de mes */}
@@ -166,84 +224,86 @@ export default function LarcoPage() {
       </div>
 
       {/* Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '16px' }}>
-        {dataVisible.map((d, i) => (
-          <div key={d.mes} style={{
-            background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden',
-            animation: 'fadeInUp 0.4s ease forwards', animationDelay: `${i * 60}ms`, opacity: 0,
-          }}>
-            {/* Header */}
-            <div style={{ padding: '14px 16px', background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(16,185,129,0.08))', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontFamily: 'DM Mono, monospace', fontWeight: '500', fontSize: '14px', color: '#93c5fd' }}>{d.mes}</span>
-              <span style={{
-                fontSize: '12px', padding: '3px 10px', borderRadius: '4px', fontFamily: 'DM Mono, monospace', fontWeight: '600',
-                background: d.margen_bruto_pct > 0 ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                color: d.margen_bruto_pct > 0 ? 'var(--accent-green)' : '#f87171',
-              }}>{P(d.margen_bruto_pct)} margen</span>
-            </div>
-
-            {/* Clientes */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ padding: '12px 16px', borderRight: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace', marginBottom: '4px' }}>NUEVOS</div>
-                <div style={{ fontSize: '24px', fontWeight: '600', fontFamily: 'DM Mono, monospace' }}>{d.nuevos_clientes}</div>
+      <div id={REPORT_ID}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '16px' }}>
+          {dataVisible.map((d, i) => (
+            <div key={d.mes} style={{
+              background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden',
+              animation: 'fadeInUp 0.4s ease forwards', animationDelay: `${i * 60}ms`, opacity: 0,
+            }}>
+              {/* Header */}
+              <div style={{ padding: '14px 16px', background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(16,185,129,0.08))', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: 'DM Mono, monospace', fontWeight: '500', fontSize: '14px', color: '#93c5fd' }}>{d.mes}</span>
+                <span style={{
+                  fontSize: '12px', padding: '3px 10px', borderRadius: '4px', fontFamily: 'DM Mono, monospace', fontWeight: '600',
+                  background: d.margen_bruto_pct > 0 ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                  color: d.margen_bruto_pct > 0 ? 'var(--accent-green)' : '#f87171',
+                }}>{P(d.margen_bruto_pct)} margen</span>
               </div>
-              <div style={{ padding: '12px 16px' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace', marginBottom: '4px' }}>ACTIVOS</div>
-                <div style={{ fontSize: '24px', fontWeight: '600', fontFamily: 'DM Mono, monospace', color: '#93c5fd' }}>{d.clientes_activos}</div>
+
+              {/* Clientes */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ padding: '12px 16px', borderRight: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace', marginBottom: '4px' }}>NUEVOS</div>
+                  <div style={{ fontSize: '24px', fontWeight: '600', fontFamily: 'DM Mono, monospace' }}>{d.nuevos_clientes}</div>
+                </div>
+                <div style={{ padding: '12px 16px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace', marginBottom: '4px' }}>ACTIVOS</div>
+                  <div style={{ fontSize: '24px', fontWeight: '600', fontFamily: 'DM Mono, monospace', color: '#93c5fd' }}>{d.clientes_activos}</div>
+                </div>
               </div>
+
+              {/* INGRESOS — colapsado por defecto, muestra total sin IGV */}
+              <SecHeader title="INGRESOS" />
+              <Row label="Ventas Stand Planes"  value={S(d.ingresos_planes)}     indent />
+              <Row label="Activation Fee"       value={S(d.ingresos_activation)} indent />
+              <Row label="Recargas"             value={S(d.ingresos_recargas)}   indent />
+              <Row label="Total Con IGV"        value={S(d.total_con_igv)}       bold color="#93c5fd" />
+              <Row label="Total Sin IGV"        value={S(d.total_sin_igv)}       bold color="#93c5fd" />
+              {/* </Section> */}
+
+              {/* COSTOS DE RED — colapsado, muestra total red */}
+              <Section title="COSTOS DE RED" summary={S(d.costo_red)}>
+                <Row label="Costo Data"          value={S(d.costo_data)}    indent />
+                <Row label="Costo Voz Saliente"  value={S(d.costo_voz_sal)} indent />
+                <Row label="Costo Voz Entrante"  value={S(d.costo_voz_ent)} indent />
+                <Row label="Costo SMS"           value={S(d.costo_sms)}     indent />
+                <Row label="Total Costos de Red" value={S(d.costo_red)}     bold />
+              </Section>
+
+              {/* COSTOS VARIABLES — colapsado, muestra total variables */}
+              <Section title="COSTOS VARIABLES" summary={S(d.gastos_variables)}>
+                <Row label="Costo CRM / Plataforma" value={S(d.costo_crm)}        indent />
+                <Row label="Costo MTC (2.30%)"      value={S(d.costo_mtc)}        indent />
+                <Row label="Costo SIM Cards"        value={S(d.costo_sim)}        indent />
+                <Row label="Vías de Pago"           value={S(d.costo_vias)}       indent />
+                <Row label="Biometría Vendedor"     value={S(d.costo_bio)}        indent />
+                <Row label="Total Costos Variables" value={S(d.gastos_variables)} bold />
+              </Section>
+
+              {/* OTROS COSTOS — colapsado, muestra total otros */}
+              <Section title="OTROS COSTOS" summary={S(d.gastos_otros)}>
+                <Row label="Renta Espacio"        value={S(d.renta_espacio)}      indent />
+                <Row label="Marketing"            value={S(d.marketing)}          indent />
+                <Row label="Software y Licencias" value={S(d.software_licencias)} indent />
+                <Row label="Soporte"              value={S(d.soporte)}            indent />
+                <Row label="Incentivo Fijo"       value={S(d.incentivo_fijo)}     indent />
+                <Row label="Incentivo Variable"   value={S(d.incentivo_variable)} indent />
+                <Row label="Total Otros Costos"   value={S(d.gastos_otros)}       bold />
+              </Section>
+
+              {/* RESULTADO — siempre visible */}
+              <div style={{ padding: '7px 16px', background: 'var(--bg-base)', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '10px', fontWeight: '600', letterSpacing: '1px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace' }}>RESULTADO</span>
+              </div>
+              <Row label="Costos Totales Negocio Móvil" value={S(d.gastos_totales)}   bold color="#f87171" />
+              <Row label="Margen de Red Móvil"          value={S(d.margen_red)}       bold />
+              <Row label="Margen de Red Móvil (%)"      value={P(d.margen_red_pct)}   bold color="var(--accent-green)" />
+              <Row label="Margen Bruto Móvil"           value={S(d.margen_bruto)}     bold />
+              <Row label="Margen Bruto Móvil (%)"       value={P(d.margen_bruto_pct)} bold color="var(--accent-green)" />
             </div>
-
-            {/* INGRESOS — colapsado por defecto, muestra total sin IGV */}
-            <SecHeader title="INGRESOS" />
-            <Row label="Ventas Stand Planes"  value={S(d.ingresos_planes)}     indent />
-            <Row label="Activation Fee"       value={S(d.ingresos_activation)} indent />
-            <Row label="Recargas"             value={S(d.ingresos_recargas)}   indent />
-            <Row label="Total Con IGV"        value={S(d.total_con_igv)}       bold color="#93c5fd" />
-            <Row label="Total Sin IGV"        value={S(d.total_sin_igv)}       bold color="#93c5fd" />
-            {/* </Section> */}
-
-            {/* COSTOS DE RED — colapsado, muestra total red */}
-            <Section title="COSTOS DE RED" summary={S(d.costo_red)}>
-              <Row label="Costo Data"          value={S(d.costo_data)}    indent />
-              <Row label="Costo Voz Saliente"  value={S(d.costo_voz_sal)} indent />
-              <Row label="Costo Voz Entrante"  value={S(d.costo_voz_ent)} indent />
-              <Row label="Costo SMS"           value={S(d.costo_sms)}     indent />
-              <Row label="Total Costos de Red" value={S(d.costo_red)}     bold />
-            </Section>
-
-            {/* COSTOS VARIABLES — colapsado, muestra total variables */}
-            <Section title="COSTOS VARIABLES" summary={S(d.gastos_variables)}>
-              <Row label="Costo CRM / Plataforma" value={S(d.costo_crm)}        indent />
-              <Row label="Costo MTC (2.30%)"      value={S(d.costo_mtc)}        indent />
-              <Row label="Costo SIM Cards"        value={S(d.costo_sim)}        indent />
-              <Row label="Vías de Pago"           value={S(d.costo_vias)}       indent />
-              <Row label="Biometría Vendedor"     value={S(d.costo_bio)}        indent />
-              <Row label="Total Costos Variables" value={S(d.gastos_variables)} bold />
-            </Section>
-
-            {/* OTROS COSTOS — colapsado, muestra total otros */}
-            <Section title="OTROS COSTOS" summary={S(d.gastos_otros)}>
-              <Row label="Renta Espacio"        value={S(d.renta_espacio)}      indent />
-              <Row label="Marketing"            value={S(d.marketing)}          indent />
-              <Row label="Software y Licencias" value={S(d.software_licencias)} indent />
-              <Row label="Soporte"              value={S(d.soporte)}            indent />
-              <Row label="Incentivo Fijo"       value={S(d.incentivo_fijo)}     indent />
-              <Row label="Incentivo Variable"   value={S(d.incentivo_variable)} indent />
-              <Row label="Total Otros Costos"   value={S(d.gastos_otros)}       bold />
-            </Section>
-
-            {/* RESULTADO — siempre visible */}
-            <div style={{ padding: '7px 16px', background: 'var(--bg-base)', borderBottom: '1px solid var(--border)' }}>
-              <span style={{ fontSize: '10px', fontWeight: '600', letterSpacing: '1px', color: 'var(--text-muted)', fontFamily: 'DM Mono, monospace' }}>RESULTADO</span>
-            </div>
-            <Row label="Costos Totales Negocio Móvil" value={S(d.gastos_totales)}   bold color="#f87171" />
-            <Row label="Margen de Red Móvil"          value={S(d.margen_red)}       bold />
-            <Row label="Margen de Red Móvil (%)"      value={P(d.margen_red_pct)}   bold color="var(--accent-green)" />
-            <Row label="Margen Bruto Móvil"           value={S(d.margen_bruto)}     bold />
-            <Row label="Margen Bruto Móvil (%)"       value={P(d.margen_bruto_pct)} bold color="var(--accent-green)" />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
